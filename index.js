@@ -1,29 +1,38 @@
 const { Engine, Render, World, Bodies } = Matter;
 
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 600;
+const WALL_THICKNESS = 60;
+const GROUND_HEIGHT = 60;
+const FRUIT_BASE_RADIUS = 40;
+const FRUIT_SIZE_INCREMENT = 20;
+const START_Y_OFFSET = FRUIT_BASE_RADIUS + 1;
+
 const engine = Engine.create();
 
 const render = Render.create({
   element: document.querySelector('#game-container'),
   engine: engine,
   options: {
-    width: 800, 
-    height: 600, 
+    width: CANVAS_WIDTH, 
+    height: CANVAS_HEIGHT, 
     wireframes: false 
   }
 });
 
-const ground = Bodies.rectangle(400, 580, 810, 60, { isStatic: true });
-const leftWall = Bodies.rectangle(0, 300, 60, 600, { isStatic: true });
-const rightWall = Bodies.rectangle(800, 300, 60, 600, { isStatic: true });
+const ground = Bodies.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT - GROUND_HEIGHT / 2, CANVAS_WIDTH, GROUND_HEIGHT, { isStatic: true });
+const leftWall = Bodies.rectangle(WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT, { isStatic: true });
+const rightWall = Bodies.rectangle(CANVAS_WIDTH - WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT, { isStatic: true });
 
 World.add(engine.world, [ground, leftWall, rightWall]);
 
 function dropFruit(x, y, sizeLevel) {
-  const radius = 20 + sizeLevel * 10;
+  const radius = FRUIT_BASE_RADIUS + sizeLevel * FRUIT_SIZE_INCREMENT;
   const fruit = Bodies.circle(x, y, radius, {
     density: 0.001,
     frictionAir: 0.0,
-    restitution: 0.8,
+    label: 'Fruit',
+    restitution: 0.2,
     friction: 0.1,
     sizeLevel: sizeLevel
   });
@@ -54,8 +63,20 @@ render.canvas.addEventListener('mousedown', function(event) {
   const scaleX = render.canvas.width / canvasBounds.width;
   const canvasX = event.clientX - canvasBounds.left;
 
-  dropFruit(canvasX * scaleX, -40, 0);
+  dropFruit(canvasX * scaleX, START_Y_OFFSET, 0);
 });
+
+function checkGameOver() {
+  for (let body of engine.world.bodies) {
+    // console.log(body.position.y - body.circleRadius);
+    if (body.label === 'Fruit' && body.position.y - body.circleRadius <= 0) {
+      console.log("Game Over!");
+      break;
+    }
+  }
+}
+
+Matter.Events.on(engine, 'beforeUpdate', checkGameOver);
 
 Render.run(render);
 Engine.run(engine);
