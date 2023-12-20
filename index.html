@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  
+  <link rel="stylesheet" href="index.css">
 </head>
 <body>
   <div class="container">
-    <div id="game-container">
-
+    <div id="game-container"></div>
+    <div id="game-over" style="display: none;">
+      <h1>Game Over!</h1>
     </div>
+    <button id="restart-button" onclick="restartGame()">Restart</button>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/matter-js@0.18.0/build/matter.min.js"></script>
   <script src="index.js"></script>

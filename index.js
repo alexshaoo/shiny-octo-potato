@@ -10,6 +10,8 @@ const START_Y_OFFSET = FRUIT_BASE_RADIUS + 1;
 
 const engine = Engine.create();
 
+let isGameOver = false;
+
 const render = Render.create({
   element: document.querySelector('#game-container'),
   engine: engine,
@@ -66,17 +68,35 @@ render.canvas.addEventListener('mousedown', function(event) {
   dropFruit(canvasX * scaleX, START_Y_OFFSET, 0);
 });
 
-function checkGameOver() {
+const runner = Matter.Runner.create();
+
+function gameOver() {
+  if (isGameOver) return;
+  isGameOver = true;
+  console.log("Game Over!");
+  document.getElementById("game-over").style.display = "block";
+  Matter.Runner.stop(runner);
+  // Matter.Engine.clear(engine);
+}
+
+Matter.Events.on(engine, 'beforeUpdate', function() {
   for (let body of engine.world.bodies) {
-    // console.log(body.position.y - body.circleRadius);
     if (body.label === 'Fruit' && body.position.y - body.circleRadius <= 0) {
-      console.log("Game Over!");
+      gameOver();
       break;
     }
   }
+});
+
+function restartGame() {
+  isGameOver = false;
+  document.getElementById("game-over").style.display = "none";
+  Matter.World.clear(engine.world, false);
+  World.add(engine.world, [ground, leftWall, rightWall]);
+  Engine.run(engine);
 }
 
-Matter.Events.on(engine, 'beforeUpdate', checkGameOver);
+Matter.Runner.run(runner, engine);
 
 Render.run(render);
 Engine.run(engine);
