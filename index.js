@@ -10,6 +10,27 @@ const START_Y_OFFSET = FRUIT_BASE_RADIUS + 1;
 
 const engine = Engine.create();
 
+const Game = {
+  score: 0,
+  highScore: 0,
+  fruitSizes: [
+    { radius: 24, scoreValue: 1, img: './assets/img/circle0.png' },
+    { radius: 32, scoreValue: 3, img: './assets/img/circle1.png' },
+    { radius: 40, scoreValue: 6, img: './assets/img/circle2.png' },
+    { radius: 56, scoreValue: 10, img: './assets/img/circle3.png' },
+    { radius: 64, scoreValue: 15, img: './assets/img/circle4.png' },
+    { radius: 72, scoreValue: 21, img: './assets/img/circle5.png' },
+    { radius: 84, scoreValue: 28, img: './assets/img/circle6.png' },
+    { radius: 96, scoreValue: 36, img: './assets/img/circle7.png' },
+    { radius: 128, scoreValue: 45, img: './assets/img/circle8.png' },
+    { radius: 160, scoreValue: 55, img: './assets/img/circle9.png' },
+    { radius: 192, scoreValue: 66, img: './assets/img/circle10.png' },
+  ],
+  currentFruitSize: 0,
+  nextFruitSize: 0,
+  fruitsMerged: [],
+};
+
 let isGameOver = false;
 
 const render = Render.create({
@@ -48,19 +69,24 @@ Matter.Events.on(engine, 'collisionStart', function(event) {
     let bodyA = pair.bodyA;
     let bodyB = pair.bodyB;
 
-    if (bodyA.sizeLevel !== undefined && bodyA.sizeLevel === bodyB.sizeLevel) {
-      const newSizeLevel = bodyA.sizeLevel + 1;
+    if (bodyA.label === 'Fruit' && bodyB.label === 'Fruit' && bodyA.sizeLevel !== undefined && bodyA.sizeLevel === bodyB.sizeLevel) {
+      const newSizeLevel = Math.min(bodyA.sizeLevel + 1, Game.fruitSizes.length - 1);
+      console.log(Game.score);
       const newX = (bodyA.position.x + bodyB.position.x) / 2;
       const newY = (bodyA.position.y + bodyB.position.y) / 2;
 
-      World.remove(engine.world, [bodyA, bodyB]);
+      Game.score += Game.fruitSizes[newSizeLevel].scoreValue;
+      document.getElementById('game-score').innerText = "Score: " + Game.score;
 
+      World.remove(engine.world, [bodyA, bodyB]);
       dropFruit(newX, newY, newSizeLevel);
     }
   });
 });
 
 render.canvas.addEventListener('mousedown', function(event) {
+  if (isGameOver) return;
+
   const canvasBounds = render.canvas.getBoundingClientRect();
   const scaleX = render.canvas.width / canvasBounds.width;
   const canvasX = event.clientX - canvasBounds.left;
@@ -76,7 +102,11 @@ function gameOver() {
   console.log("Game Over!");
   document.getElementById("game-over").style.display = "block";
   Matter.Runner.stop(runner);
-  // Matter.Engine.clear(engine);
+  
+  if (Game.score > Game.highScore) {
+    Game.highScore = Game.score;
+    document.getElementById('game-highscore').innerText = "High Score: " + Game.highScore;
+  }
 }
 
 Matter.Events.on(engine, 'beforeUpdate', function() {
@@ -94,6 +124,9 @@ function restartGame() {
   Matter.World.clear(engine.world, false);
   World.add(engine.world, [ground, leftWall, rightWall]);
   Engine.run(engine);
+
+  Game.score = 0;
+  document.getElementById('game-score').innerText = "Score: " + Game.score;
 }
 
 Matter.Runner.run(runner, engine);
