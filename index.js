@@ -1,135 +1,319 @@
-const { Engine, Render, World, Bodies } = Matter;
+const { 
+  Engine, Render, Runner, Composites, Common, MouseConstraint, 
+  Mouse, Composite, Bodies, Events
+} = Matter;
 
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 600;
-const WALL_THICKNESS = 60;
-const GROUND_HEIGHT = 60;
-const FRUIT_BASE_RADIUS = 40;
-const FRUIT_SIZE_INCREMENT = 20;
-const START_Y_OFFSET = FRUIT_BASE_RADIUS + 1;
+// random number generator from https://stackoverflow.com/a/47593316
+function mulberry32(a) {
+	return function() {
+		let t = a += 0x6D2B79F5;
+		t = Math.imul(t ^ t >>> 15, t | 1);
+		t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
+	}
+}
 
-const engine = Engine.create();
+const rand = mulberry32(Date.now());
 
-const Game = {
-  score: 0,
-  highScore: 0,
-  fruitSizes: [
-    { radius: 24, scoreValue: 1, img: './assets/img/circle0.png' },
-    { radius: 32, scoreValue: 3, img: './assets/img/circle1.png' },
-    { radius: 40, scoreValue: 6, img: './assets/img/circle2.png' },
-    { radius: 56, scoreValue: 10, img: './assets/img/circle3.png' },
-    { radius: 64, scoreValue: 15, img: './assets/img/circle4.png' },
-    { radius: 72, scoreValue: 21, img: './assets/img/circle5.png' },
-    { radius: 84, scoreValue: 28, img: './assets/img/circle6.png' },
-    { radius: 96, scoreValue: 36, img: './assets/img/circle7.png' },
-    { radius: 128, scoreValue: 45, img: './assets/img/circle8.png' },
-    { radius: 160, scoreValue: 55, img: './assets/img/circle9.png' },
-    { radius: 192, scoreValue: 66, img: './assets/img/circle10.png' },
-  ],
-  currentFruitSize: 0,
-  nextFruitSize: 0,
-  fruitsMerged: [],
+const wallPad = 64;
+const loseHeight = 84;
+const statusBarHeight = 48;
+const friction = {
+	friction: 0.006,
+	frictionStatic: 0.006,
+	frictionAir: 0,
+	restitution: 0.1
 };
 
-let isGameOver = false;
+const GameStates = {
+	MENU: 0,
+	READY: 1,
+	DROP: 2,
+	LOSE: 3,
+};
 
-const render = Render.create({
-  element: document.querySelector('#game-container'),
-  engine: engine,
-  options: {
-    width: CANVAS_WIDTH, 
-    height: CANVAS_HEIGHT, 
-    wireframes: false 
-  }
-});
+const Game = {
+	width: 640,
+	height: 960,
+	elements: {
+		canvas: document.getElementById('game-canvas'),
+		ui: document.getElementById('game-ui'),
+		score: document.getElementById('game-score'),
+		end: document.getElementById('game-end-container'),
+		endTitle: document.getElementById('game-end-title'),
+		statusValue: document.getElementById('game-highscore-value'),
+		nextFruitImg: document.getElementById('game-next-fruit'),
+		previewBall: null,
+	},
+	cache: { highscore: 0 },
+	stateIndex: GameStates.MENU,
+	score: 0,
+	fruitsMerged: [],
+	calculateScore: function () {
+		const score = Game.fruitsMerged.reduce((total, count, sizeIndex) => {
+			const value = Game.fruitSizes[sizeIndex].scoreValue * count;
+			return total + value;
+		}, 0);
 
-const ground = Bodies.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT - GROUND_HEIGHT / 2, CANVAS_WIDTH, GROUND_HEIGHT, { isStatic: true });
-const leftWall = Bodies.rectangle(WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT, { isStatic: true });
-const rightWall = Bodies.rectangle(CANVAS_WIDTH - WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT, { isStatic: true });
+		Game.score = score;
+		Game.elements.score.innerText = Game.score;
+	},
+	fruitSizes: [
+    { radius: 24,  scoreValue: 1 },
+    { radius: 32,  scoreValue: 3 },
+    { radius: 40,  scoreValue: 6 },
+    { radius: 56,  scoreValue: 10 },
+    { radius: 64,  scoreValue: 15 },
+    { radius: 72,  scoreValue: 21 },
+    { radius: 84,  scoreValue: 28 },
+    { radius: 96,  scoreValue: 36 },
+    { radius: 128, scoreValue: 45 },
+    { radius: 160, scoreValue: 55 },
+    { radius: 192, scoreValue: 66 },
+  ],
+	currentFruitSize: 0,
+	nextFruitSize: 0,
+	setNextFruitSize: function () {
+		Game.nextFruitSize = Math.floor(rand() * 5);
+	},
+	showHighscore: function () {
+		Game.elements.statusValue.innerText = Game.cache.highscore;
+	},
+	loadHighscore: function () {
+		const gameCache = localStorage.getItem('suika-game-cache');
+		if (gameCache === null) {
+			Game.saveHighscore();
+			return;
+		}
 
-World.add(engine.world, [ground, leftWall, rightWall]);
+		Game.cache = JSON.parse(gameCache);
+		Game.showHighscore();
+	},
+	saveHighscore: function () {
+		Game.calculateScore();
+		if (Game.score < Game.cache.highscore) return;
 
-function dropFruit(x, y, sizeLevel) {
-  const radius = FRUIT_BASE_RADIUS + sizeLevel * FRUIT_SIZE_INCREMENT;
-  const fruit = Bodies.circle(x, y, radius, {
-    density: 0.001,
-    frictionAir: 0.0,
-    label: 'Fruit',
-    restitution: 0.2,
-    friction: 0.1,
-    sizeLevel: sizeLevel
-  });
-  World.add(engine.world, fruit);
-}
+		Game.cache.highscore = Game.score;
+		Game.showHighscore();
+		Game.elements.endTitle.innerText = 'New Highscore!';
 
-Matter.Events.on(engine, 'collisionStart', function(event) {
-  let pairs = event.pairs;
+		localStorage.setItem('suika-game-cache', JSON.stringify(Game.cache));
+	},
 
-  pairs.forEach(function(pair) {
-    let bodyA = pair.bodyA;
-    let bodyB = pair.bodyB;
+	initGame: function () {
+		Render.run(render);
+		Runner.run(runner, engine);
 
-    if (bodyA.label === 'Fruit' && bodyB.label === 'Fruit' && bodyA.sizeLevel !== undefined && bodyA.sizeLevel === bodyB.sizeLevel) {
-      const newSizeLevel = Math.min(bodyA.sizeLevel + 1, Game.fruitSizes.length - 1);
-      console.log(Game.score);
-      const newX = (bodyA.position.x + bodyB.position.x) / 2;
-      const newY = (bodyA.position.y + bodyB.position.y) / 2;
+		Game.loadHighscore();
+		Game.elements.ui.style.display = 'none';
+		Game.fruitsMerged = Array.apply(null, Array(Game.fruitSizes.length)).map(() => 0);
+    
+    Game.startGame();
+	},
 
-      Game.score += Game.fruitSizes[newSizeLevel].scoreValue;
-      document.getElementById('game-score').innerText = "Score: " + Game.score;
+	startGame: function () {
+		Composite.add(engine.world, gameStatics);
 
-      World.remove(engine.world, [bodyA, bodyB]);
-      dropFruit(newX, newY, newSizeLevel);
-    }
-  });
-});
+		Game.calculateScore();
+		Game.elements.endTitle.innerText = 'Game Over!';
+		Game.elements.ui.style.display = 'block';
+		Game.elements.end.style.display = 'none';
+		Game.elements.previewBall = Game.generateFruitBody(Game.width / 2, 0, 0, { isStatic: true });
+		Composite.add(engine.world, Game.elements.previewBall);
 
-render.canvas.addEventListener('mousedown', function(event) {
-  if (isGameOver) return;
+		setTimeout(() => {
+			Game.stateIndex = GameStates.READY;
+		}, 250);
 
-  const canvasBounds = render.canvas.getBoundingClientRect();
-  const scaleX = render.canvas.width / canvasBounds.width;
-  const canvasX = event.clientX - canvasBounds.left;
+		Events.on(mouseConstraint, 'mouseup', function (e) {
+			Game.addFruit(e.mouse.position.x);
+		});
 
-  dropFruit(canvasX * scaleX, START_Y_OFFSET, 0);
-});
+		Events.on(mouseConstraint, 'mousemove', function (e) {
+			if (Game.stateIndex !== GameStates.READY) return;
+			if (Game.elements.previewBall === null) return;
 
-const runner = Matter.Runner.create();
+			Game.elements.previewBall.position.x = e.mouse.position.x;
+		});
 
-function gameOver() {
-  if (isGameOver) return;
-  isGameOver = true;
-  console.log("Game Over!");
-  document.getElementById("game-over").style.display = "block";
-  Matter.Runner.stop(runner);
+		Events.on(engine, 'collisionStart', function (e) {
+			for (let i = 0; i < e.pairs.length; i++) {
+				const { bodyA, bodyB } = e.pairs[i];
+
+				if (bodyA.isStatic || bodyB.isStatic) continue;
+
+				const aY = bodyA.position.y + bodyA.circleRadius;
+				const bY = bodyB.position.y + bodyB.circleRadius;
+
+				if (aY < loseHeight || bY < loseHeight) {
+					Game.loseGame();
+					return;
+				}
+
+				if (bodyA.sizeIndex !== bodyB.sizeIndex) continue;
+
+				let newSize = bodyA.sizeIndex + 1;
+
+				if (bodyA.circleRadius >= Game.fruitSizes[Game.fruitSizes.length - 1].radius) {
+					newSize = 0;
+				}
+
+				Game.fruitsMerged[bodyA.sizeIndex] += 1;
+
+				const midPosX = (bodyA.position.x + bodyB.position.x) / 2;
+				const midPosY = (bodyA.position.y + bodyB.position.y) / 2;
+
+				Composite.remove(engine.world, [bodyA, bodyB]);
+				Composite.add(engine.world, Game.generateFruitBody(midPosX, midPosY, newSize));
+				Game.calculateScore();
+			}
+		});
+	},
+
+	loseGame: function () {
+		Game.stateIndex = GameStates.LOSE;
+		Game.elements.end.style.display = 'flex';
+		runner.enabled = false;
+		Game.saveHighscore();
+	},
+
+	lookupFruitIndex: function (radius) {
+		const sizeIndex = Game.fruitSizes.findIndex(size => size.radius == radius);
+		if (sizeIndex === undefined) return null;
+		if (sizeIndex === Game.fruitSizes.length - 1) return null;
+
+		return sizeIndex;
+	},
+
+	generateFruitBody: function (x, y, sizeIndex, extraConfig = {}) {
+    const size = Game.fruitSizes[sizeIndex];
+    const circle = Bodies.circle(x, y, size.radius, {
+      ...friction,
+      ...extraConfig,
+      render: {
+        fillStyle: `rgb(${Math.floor(rand() * 256)}, ${Math.floor(rand() * 256)}, ${Math.floor(rand() * 256)})`,
+      },
+    });
+    circle.sizeIndex = sizeIndex;
   
-  if (Game.score > Game.highScore) {
-    Game.highScore = Game.score;
-    document.getElementById('game-highscore').innerText = "High Score: " + Game.highScore;
-  }
+    return circle;
+  },
+
+	addFruit: function (x) {
+		if (Game.stateIndex !== GameStates.READY) return;
+
+		Game.stateIndex = GameStates.DROP;
+		const latestFruit = Game.generateFruitBody(x, 0, Game.currentFruitSize);
+		Composite.add(engine.world, latestFruit);
+
+		Game.currentFruitSize = Game.nextFruitSize;
+		Game.setNextFruitSize();
+		Game.calculateScore();
+
+		Composite.remove(engine.world, Game.elements.previewBall);
+		Game.elements.previewBall = Game.generateFruitBody(render.mouse.position.x, 0, Game.currentFruitSize, {
+			isStatic: true,
+			collisionFilter: { mask: 0x0040 }
+		});
+
+		setTimeout(() => {
+			if (Game.stateIndex === GameStates.DROP) {
+				Composite.add(engine.world, Game.elements.previewBall);
+				Game.stateIndex = GameStates.READY;
+			}
+		}, 500);
+	}
 }
 
-Matter.Events.on(engine, 'beforeUpdate', function() {
-  for (let body of engine.world.bodies) {
-    if (body.label === 'Fruit' && body.position.y - body.circleRadius <= 0) {
-      gameOver();
-      break;
-    }
-  }
+const engine = Engine.create();
+const runner = Runner.create();
+const render = Render.create({
+	element: Game.elements.canvas,
+	engine,
+	options: {
+		width: Game.width,
+		height: Game.height,
+		wireframes: false,
+		background: '#ffdcae'
+	}
 });
 
-function restartGame() {
-  isGameOver = false;
-  document.getElementById("game-over").style.display = "none";
-  Matter.World.clear(engine.world, false);
-  World.add(engine.world, [ground, leftWall, rightWall]);
-  Engine.run(engine);
+const wallProps = {
+	isStatic: true,
+	render: { fillStyle: '#FFEEDB' },
+	...friction,
+};
 
-  Game.score = 0;
-  document.getElementById('game-score').innerText = "Score: " + Game.score;
-}
+const gameStatics = [
+	Bodies.rectangle(-(wallPad / 2), Game.height / 2, wallPad, Game.height, wallProps),
 
-Matter.Runner.run(runner, engine);
+	Bodies.rectangle(Game.width + (wallPad / 2), Game.height / 2, wallPad, Game.height, wallProps),
 
-Render.run(render);
-Engine.run(engine);
+	Bodies.rectangle(Game.width / 2, Game.height + (wallPad / 2) - statusBarHeight, Game.width, wallPad, wallProps),
+];
+
+const mouse = Mouse.create(render.canvas);
+const mouseConstraint = MouseConstraint.create(engine, {
+	mouse: mouse,
+	constraint: {
+		stiffness: 0.2,
+		render: {
+			visible: false,
+		},
+	},
+});
+render.mouse = mouse;
+
+Render.looksLike = (render) => {
+  render.textures = {};
+  Render.startViewTransform(render);
+  Render.endViewTransform(render);
+};
+
+Render.looksLike(render);
+
+const originalRenderBodies = Render.bodies;
+Render.bodies = (render, bodies, context) => {
+  originalRenderBodies(render, bodies, context);
+
+  bodies.forEach((body) => {
+    if (body.render.text) {
+      context.font = `${body.render.text.size}px ${body.render.text.family}`;
+      context.fillStyle = body.render.text.color;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(body.render.text.content, body.position.x, body.position.y);
+    }
+  });
+};
+
+Game.initGame();
+
+const resizeCanvas = () => {
+	const screenWidth = document.body.clientWidth;
+	const screenHeight = document.body.clientHeight;
+
+	let newWidth = Game.width;
+	let newHeight = Game.height;
+	let scaleUI = 1;
+
+	if (screenWidth * 1.5 > screenHeight) {
+		newHeight = Math.min(Game.height, screenHeight);
+		newWidth = newHeight / 1.5;
+		scaleUI = newHeight / Game.height;
+	} else {
+		newWidth = Math.min(Game.width, screenWidth);
+		newHeight = newWidth * 1.5;
+		scaleUI = newWidth / Game.width;
+	}
+
+	render.canvas.style.width = `${newWidth}px`;
+	render.canvas.style.height = `${newHeight}px`;
+
+	Game.elements.ui.style.width = `${Game.width}px`;
+	Game.elements.ui.style.height = `${Game.height}px`;
+	Game.elements.ui.style.transform = `scale(${scaleUI})`;
+};
+
+document.body.onload = resizeCanvas;
+document.body.onresize = resizeCanvas;
