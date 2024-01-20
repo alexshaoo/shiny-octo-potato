@@ -65,3 +65,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 - Matter.js Library
 - Inspiration from the original Suika Game
+- Fruits and other graphics drawn by [@alonartanuki](https://www.instagram.com/alonartanuki/) on Instagram
