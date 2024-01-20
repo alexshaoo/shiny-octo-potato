@@ -18,7 +18,7 @@ Suika Game, the inspiration behind Shiny Octo Potato, was a viral sensation in J
 
 - [ ] Add a "How to Play" section to the website.
 - [ ] Add a "Credits" section to the website.
-- [ ] Add texture to the fruits.
+- [x] Add texture to the fruits.
 - [ ] Add sound effects.
 - [ ] Add "Pause, Resume" features.
 - [ ] Add the ability to upload custom images for the fruits.
