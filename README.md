@@ -42,6 +42,12 @@ Access the game directly through your web browser. No installation required!
 1. **Access the Game**: Visit [https://alexshaoo.github.io/shiny-octo-potato/](https://alexshaoo.github.io/shiny-octo-potato/).
 2. **Play**: Click to drop the fruits and try to merge them to score high.
 
+## Acknowledgements
+
+- Matter.js Library
+- Inspiration from the original Suika Game
+- Fruits and other graphics drawn by [@alonartanuki](https://www.instagram.com/alonartanuki/) on Instagram
+
 ## How It Works
 
 Built using HTML, CSS, and JavaScript, and powered by the Matter.js library, Shiny Octo Potato offers a delightful physics-based puzzle experience.
@@ -60,9 +66,3 @@ Your contributions to improve Shiny Octo Potato are welcome. Follow these steps:
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
-## Acknowledgements
-
-- Matter.js Library
-- Inspiration from the original Suika Game
-- Fruits and other graphics drawn by [@alonartanuki](https://www.instagram.com/alonartanuki/) on Instagram
