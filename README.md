@@ -1,8 +1,7 @@
 # Shiny Octo Potato
 
 ## Overview
-
-Shiny Octo Potato is an interactive, physics-based web game inspired by the popular Suika Game. Engage in a unique puzzle experience where you match and merge fruits in a 2048-style game with a twist of physics. Play it directly in your [browser](https://suikagame.io/).
+Shiny Octo Potato is an interactive, physics-based web game inspired by the popular Suika Game. Engage in a unique puzzle experience where you match and merge fruits in a 2048-style game with a twist of physics. Play it directly in your [browser](https://alexshaoo.github.io/shiny-octo-potato/).
 
 ## Game Objective
 
@@ -40,7 +39,7 @@ Suika Game, the inspiration behind Shiny Octo Potato, was a viral sensation in J
 
 Access the game directly through your web browser. No installation required!
 
-1. **Access the Game**: Visit [suikagame.io](https://suikagame.io/).
+1. **Access the Game**: Visit [https://alexshaoo.github.io/shiny-octo-potato/](https://alexshaoo.github.io/shiny-octo-potato/).
 2. **Play**: Click to drop the fruits and try to merge them to score high.
 
 ## How It Works
