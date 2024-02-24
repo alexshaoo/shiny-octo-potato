@@ -31,9 +31,8 @@ Suika Game, the inspiration behind Shiny Octo Potato, was a viral sensation in J
 - **Gameplay**: Simple and engaging, suitable for all ages.
 - **Controls**: Easy-to-use controls - just click to drop the fruit.
 - **Visual**: Bright and clear graphics, ensuring a pleasant visual experience.
-- **Audio**: Charming background music that complements the game's theme.
+- **Audio**: WIP: Charming background music that complements the game's theme.
 - **Content**: Family-friendly and suitable for a wide audience.
-- **Full Accessibility Report**: Data by Family Gaming Database.
 
 ## Installation and Playing
 
